@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>STAND RUSH — Golden Arrow Arena</title>
+    <meta name="description" content="A 3D browser action game with six playable Stands, each with unique mechanics." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23120a24'/%3E%3Cpath d='M16 4l3 8h8l-6.5 5 2.5 8-7-5-7 5 2.5-8L5 12h8z' fill='%23f5c542'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <!-- ===================== IN-GAME HUD ===================== -->
+      <div id="hud" class="hud hidden">
+        <div class="hud-top-left">
+          <div class="portrait">
+            <div class="portrait-ring"></div>
+            <span id="portrait-glyph">★</span>
+          </div>
+          <div class="bars">
+            <div class="bar health">
+              <div id="health-fill" class="bar-fill"></div>
+              <span id="health-text" class="bar-label">100 / 100</span>
+            </div>
+            <div class="bar stand">
+              <div id="stand-fill" class="bar-fill"></div>
+              <span class="bar-label">STAND ENERGY</span>
+            </div>
+            <div class="bar ult">
+              <div id="ult-fill" class="bar-fill"></div>
+              <span id="ult-text" class="bar-label">RUSH READY</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-top-center">
+          <div class="wave-tag">WAVE</div>
+          <div id="wave-number" class="wave-number">1</div>
+          <div id="wave-sub" class="wave-sub">ENEMIES: 0</div>
+          <div id="stand-name" class="stand-name">STAR PLATINUM</div>
+        </div>
+
+        <div class="hud-top-right">
+          <div class="score-label">SCORE</div>
+          <div id="score" class="score-value">0</div>
+          <div id="combo" class="combo hidden"><span id="combo-value">0</span> HITS</div>
+          <div id="style-rank" class="style-rank">D</div>
+        </div>
+
+        <div id="boss-bar-wrap" class="boss-bar-wrap hidden">
+          <div id="boss-name" class="boss-name">???</div>
+          <div class="boss-bar"><div id="boss-fill" class="bar-fill"></div></div>
+        </div>
+
+        <div class="crosshair"><span></span><span></span></div>
+        <div id="hitmarker" class="hitmarker"></div>
+        <div id="vignette" class="vignette"></div>
+        <div id="timestop-overlay" class="timestop-overlay hidden"><span>ZA WARUDO</span></div>
+        <div id="status-banner" class="status-banner hidden"></div>
+
+        <div class="hud-bottom">
+          <div class="ability" data-key="J"><div class="ability-key">J</div><div class="ability-name">STRIKE</div><div class="cooldown"></div></div>
+          <div class="ability" data-key="Q"><div class="ability-key">Q</div><div class="ability-name" id="ab-q-name">ABILITY</div><div class="cooldown"></div></div>
+          <div class="ability" data-key="E"><div class="ability-key">E</div><div class="ability-name" id="ab-e-name">ABILITY</div><div class="cooldown"></div></div>
+          <div class="ability" data-key="R"><div class="ability-key">R</div><div class="ability-name" id="ab-r-name">RUSH</div><div class="cooldown"></div></div>
+        </div>
+
+        <div class="hud-hint" id="hud-hint">
+          <b>WASD</b> move · <b>Mouse</b> look · <b>LMB/J</b> strike · <b>Q/E</b> abilities · <b>R</b> Stand Rush · <b>Space</b> jump · <b>Shift</b> dash · <b>C</b> summon/hide Stand · <b>M</b> mute · <b>Esc</b> pause
+        </div>
+
+        <div id="float-layer" class="float-layer"></div>
+      </div>
+
+      <!-- ===================== SCREENS ===================== -->
+      <div id="screen-title" class="screen">
+        <div class="bg-swirl"></div>
+        <div class="title-wrap">
+          <div class="title-jp">ジョジョの奇妙な冒険</div>
+          <h1 class="title">STAND<span>RUSH</span></h1>
+          <div class="subtitle">GOLDEN ARROW ARENA</div>
+          <p class="tagline">Six Stands. Six fighting styles. One arena. Choose your Stand and survive the endless waves.</p>
+          <button id="btn-start" class="btn primary">START GAME</button>
+          <button id="btn-howto" class="btn ghost">HOW TO PLAY</button>
+          <div class="credit">A fan tribute · not affiliated with the original creators</div>
+        </div>
+      </div>
+
+      <div id="screen-select" class="screen hidden">
+        <h2 class="screen-title">CHOOSE YOUR STAND</h2>
+        <p class="screen-sub">Click a Stand to preview its stats and mechanics. Each Stand has a completely unique fighting style.</p>
+        <div id="stand-grid" class="stand-grid"></div>
+        <div class="select-actions">
+          <button id="btn-back-title" class="btn ghost">BACK</button>
+          <button id="btn-confirm" class="btn primary" disabled>ENTER THE ARENA</button>
+        </div>
+      </div>
+
+      <div id="screen-howto" class="screen hidden">
+        <div class="howto-panel">
+          <h2 class="screen-title">HOW TO PLAY</h2>
+          <div class="howto-grid">
+            <div>
+              <h3>CONTROLS</h3>
+              <ul>
+                <li><b>W A S D</b> — move</li>
+                <li><b>Mouse</b> — aim camera (click to lock)</li>
+                <li><b>Left Click / J</b> — Stand strike (hold for combos)</li>
+                <li><b>Q / E</b> — Stand abilities</li>
+                <li><b>R</b> — Stand Rush (ultimate)</li>
+                <li><b>Space</b> — jump · <b>Shift</b> — dash (i-frames)</li>
+                <li><b>C</b> — summon / dismiss Stand · <b>Tab</b> — swap Stand</li>
+                <li><b>M</b> — mute · <b>Esc / P</b> — pause</li>
+              </ul>
+            </div>
+            <div>
+              <h3>THE RULES</h3>
+              <ul>
+                <li>Clear every enemy in a wave to advance. A Boss arrives every 5th wave.</li>
+                <li>Dealing damage fills the <b>Rush meter</b>. Full meter means your ultimate is ready.</li>
+                <li>Chain hits to raise your <b>Style Rank</b> (D→C→B→A→AA→AAA). Higher rank = more score.</li>
+                <li>Dash grants brief invulnerability — use it to slip through attacks.</li>
+                <li>Knock enemies into the arena walls for bonus <b>Wall Slam</b> damage.</li>
+                <li>Your Stand fights beside you: press <b>C</b> to manifest it fully.</li>
+              </ul>
+            </div>
+          </div>
+          <button id="btn-howto-back" class="btn primary">GOT IT</button>
+        </div>
+      </div>
+
+      <div id="screen-pause" class="screen hidden">
+        <div class="pause-panel">
+          <h2 class="screen-title">PAUSED</h2>
+          <button id="btn-resume" class="btn primary">RESUME</button>
+          <button id="btn-restart-pause" class="btn ghost">RESTART RUN</button>
+          <button id="btn-quit" class="btn ghost">CHANGE STAND</button>
+        </div>
+      </div>
+
+      <div id="screen-over" class="screen hidden">
+        <div class="over-panel">
+          <h2 id="over-title" class="screen-title">YOU DIED</h2>
+          <div id="over-sub" class="screen-sub">The Stand fades...</div>
+          <div class="stats-grid">
+            <div><span id="stat-wave">0</span><label>WAVE</label></div>
+            <div><span id="stat-score">0</span><label>SCORE</label></div>
+            <div><span id="stat-kills">0</span><label>KILLS</label></div>
+            <div><span id="stat-best">D</span><label>BEST RANK</label></div>
+          </div>
+          <button id="btn-retry" class="btn primary">RETRY</button>
+          <button id="btn-change" class="btn ghost">CHANGE STAND</button>
+        </div>
+      </div>
+
+      <div id="loading" class="screen">
+        <div class="loading-inner">
+          <div class="spinner"></div>
+          <div class="loading-text">SUMMONING YOUR STAND…</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
